@@ -17,6 +17,10 @@ app.get('/', async (req, res) => {
     res.json(result)
 })
 
+app.get("/", (req, res) => {
+  res.send("Finance API is running 🚀");
+});
+
 app.post("/invoke", async (req, res) => {
 
     const { input } = req.body
