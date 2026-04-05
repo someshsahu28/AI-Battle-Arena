@@ -3,21 +3,17 @@ import UserMessage from './UserMessage';
 import ArenaResponse from './ArenaResponse';
 import axios from "axios";
 
-const MOCK_RESPONSE = {
-  solution_1: "Here is a clean Python solution using modern syntax:\n\n```python\ndef fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n```\n\nThis approach has O(n) time complexity and O(1) space.",
-  solution_2: "A recursive solution can be elegant but less efficient:\n\n```python\ndef fib(n):\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)\n```\n\nNote: this has O(2^n) time complexity.",
-  judge: {
-    solution_1_score: 10,
-    solution_2_score: 5,
-    solution_1_reasoning: "Excellent, optimal solution. Space complexity is O(1) which is perfect for this problem.",
-    solution_2_reasoning: "The recursive approach without memoization is extremely slow for large inputs."
-  }
-};
-
 export default function ChatInterface() {
-  const [ messages, setMessages ] = useState([]);
-  const [ inputValue, setInputValue ] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   const endOfMessagesRef = useRef(null);
+
+  // ✅ API URL (auto switches local vs production)
+  const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://ai-battle-arena-3ahd.onrender.com";
 
   const scrollToBottom = () => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,28 +21,21 @@ export default function ChatInterface() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [ messages ]);
-
-  const [ isLoading, setIsLoading ] = useState(false);
+  }, [messages]);
 
   const handleSend = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
 
     setIsLoading(true);
-    
-    // Optimistically add user message if desired, or just wait. 
-    // We will just wait and add both at the end as originally designed,
-    // or properly handle it. Let's just add the query and a loading indicator?
-    // The original code only added the message after data was received.
 
     try {
-      const response = await axios.post("http://localhost:3000/invoke", {
+      const response = await axios.post(`${API_URL}/invoke`, {
         input: inputValue
       });
 
       const data = response.data;
-      console.log(data);
+      console.log("Response:", data);
 
       const newMessage = {
         id: Date.now(),
@@ -54,31 +43,42 @@ export default function ChatInterface() {
         ...data.result
       };
 
-      setMessages([ ...messages, newMessage ]);
+      setMessages((prev) => [...prev, newMessage]);
       setInputValue('');
+
     } catch (error) {
-      console.error("Failed to fetch from backend:", error);
-      // If error is AxiosError: Request aborted, we log it but don't crash
+      console.error("❌ Backend Error:", error);
+
       if (axios.isCancel(error)) {
         console.warn('Request was cancelled');
+      } else {
+        alert("Server error. Check backend / CORS.");
       }
+
     } finally {
       setIsLoading(false);
     }
   };
 
-
   return (
     <div className="flex flex-col h-screen bg-zinc-50 dark:bg-zinc-950 font-sans">
+
+      {/* Header */}
       <header className="py-4 px-8 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-10 flex justify-center">
-        <h1 className="text-xl font-medium tracking-tight text-zinc-900 dark:text-zinc-50">AI Chat Arena</h1>
+        <h1 className="text-xl font-medium tracking-tight text-zinc-900 dark:text-zinc-50">
+          AI Chat Arena
+        </h1>
       </header>
 
+      {/* Chat Area */}
       <main className="flex-1 overflow-y-auto px-4 md:px-8 py-8 w-full max-w-6xl mx-auto flex flex-col">
+
         {messages.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-zinc-400">
             <div className="text-center">
-              <h2 className="text-2xl font-light mb-2 text-zinc-600 dark:text-zinc-300">Welcome to the Arena</h2>
+              <h2 className="text-2xl font-light mb-2 text-zinc-600 dark:text-zinc-300">
+                Welcome to the Arena
+              </h2>
               <p>Type a problem below to see two AI solutions go head-to-head.</p>
             </div>
           </div>
@@ -94,38 +94,39 @@ export default function ChatInterface() {
             </div>
           ))
         )}
+
         <div ref={endOfMessagesRef} />
       </main>
 
+      {/* Input */}
       <div className="p-6 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSend} className="relative flex items-center">
+
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask a coding question..."
-              className="w-full bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 border-none rounded-full py-4 pl-6 pr-16 focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-zinc-400 transition-shadow shadow-sm hover:shadow-md text-lg"
+              className="w-full bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 border-none rounded-full py-4 pl-6 pr-16 focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-zinc-400 shadow-sm text-lg"
             />
+
             <button
               type="submit"
-              className="absolute right-2 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-full transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!inputValue.trim() || isLoading}
+              className="absolute right-2 bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-full disabled:opacity-50"
             >
               {isLoading ? (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <span className="animate-spin">⏳</span>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                  <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
-                </svg>
+                "➤"
               )}
             </button>
+
           </form>
         </div>
       </div>
+
     </div>
   );
 }
