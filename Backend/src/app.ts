@@ -10,7 +10,7 @@ app.use(cors({
     credentials: true,
 }))
 
-app.get('/', async (req, res) => {
+app.get('/api/ai', async (req, res) => {
 
     const result = await runGraph("What is RAG Systeam")
 
